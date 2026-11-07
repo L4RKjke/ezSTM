@@ -903,7 +903,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
 
-        title = QLabel("ezSTM")
+        title = QLabel("ezSTM - l4")
         title.setStyleSheet("font-size: 19pt; font-weight: 700; color: #ff9b37;")
         root.addWidget(title)
         check_box_icon_path = (PAYLOAD / "check.svg").as_posix()
