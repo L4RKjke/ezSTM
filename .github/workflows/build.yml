@@ -1,0 +1,54 @@
+name: Build ezSTM for Windows
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Download source code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Create virtual environment
+        shell: pwsh
+        run: python -m venv .venv
+
+      - name: Upgrade pip
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+      - name: Install dependencies
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
+
+      - name: Build ezSTM
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m PyInstaller `
+              --noconfirm `
+              --clean `
+              --onefile `
+              --windowed `
+              --name ezSTM `
+              --add-data "payload;payload" `
+              main.py
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ezSTM-Windows
+          path: dist/ezSTM.exe
+          if-no-files-found: error
+          retention-days: 30
