@@ -6,7 +6,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+# Не допускаем одновременное обновление релиза.
+concurrency:
+  group: ezstm-windows-release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -52,3 +57,26 @@ jobs:
           path: dist/ezSTM.exe
           if-no-files-found: error
           retention-days: 30
+
+      - name: Update latest release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          target_commitish: ${{ github.sha }}
+          name: ezSTM — последняя сборка Windows
+          body: |
+            Автоматическая сборка ezSTM для Windows из ветки main.
+
+            Скачайте ezSTM.exe из раздела Assets ниже.
+
+            Коммит: ${{ github.sha }}
+            Сборка: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          draft: false
+          prerelease: false
+          make_latest: "true"
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: dist/ezSTM.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
