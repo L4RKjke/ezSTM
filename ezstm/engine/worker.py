@@ -27,6 +27,7 @@ class Engine(QThread):
     busy = Signal(bool)
     reset_operations = Signal()
     images_changed = Signal()
+    written = Signal()
 
     def __init__(self):
         super().__init__()
@@ -374,6 +375,7 @@ class Engine(QThread):
             return "Готово по отчёту скрипта"
         if title == "Калибровка акселерометра":
             return "Команды подтверждены FC"
+        
         return "Готово"
 
     def perform(self, mode, options):
@@ -417,8 +419,9 @@ class Engine(QThread):
                 self.progress.emit(round((index + 1) * 100 / len(steps)))
 
             self.message("Последовательность операций завершена.")
-
             # После записи пользовательский образ может быть не Betaflight.
+            if mode == "write":
+                self.written.emit()
             # Если имена/калибровка отключены, это не делает запись ошибочной.
             try:
                 self.wait_serial(timeout=10)
