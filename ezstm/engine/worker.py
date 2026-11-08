@@ -1,5 +1,6 @@
 import datetime
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -33,7 +34,7 @@ class Engine(QThread):
         self.stop_requested = threading.Event()
         self.settings = {}
         self.current = None
-
+        
         # Автопрошивка запускается только один раз за цикл подключения.
         # Переход COM -> DFU -> COM внутри операции не считается
         # новым физическим подключением.

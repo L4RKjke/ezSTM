@@ -14,7 +14,8 @@ def prepare_files():
     if not PAYLOAD.is_dir():
         raise RuntimeError("Не найдена папка payload.")
 
-    # Рабочие файлы не остаются во временной папке PyInstaller.
+    # Рабочие файлы не остаются во временной папке PyInstaller:
+    # результат чтения не потеряется после закрытия программы.
     for item in PAYLOAD.iterdir():
         dest = RUNTIME / item.name
         if item.is_dir():
@@ -22,6 +23,9 @@ def prepare_files():
         else:
             shutil.copy2(item, dest)
 
+    default_fw = DEFAULT_IMAGES / "fw.bin"
+    if not default_fw.exists() and (PAYLOAD / "fw.bin").exists():
+        shutil.copy2(PAYLOAD / "fw.bin", default_fw)
 
 
 def verify_runtime_files():
