@@ -9,7 +9,7 @@
 [**Скачать последнюю версию `ezSTM.exe`**](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)
 
 Все опубликованные версии доступны в разделе [Releases](https://github.com/L4RKjke/ezSTM/releases).
-После скачивания положить в любое место на вашем ПК.
+## После скачивания положить в любое место на вашем ПК.
 
 ## 🚀 Как прошить контроллер
 
