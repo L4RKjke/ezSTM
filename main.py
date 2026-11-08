@@ -903,8 +903,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
 
-        # Внутри класса главного окна:
-        title = QLabel("ezSTM - инструмент прошивки STM32 для Betaflight")
+        title = QLabel("ezSTM - инструмент прошивки STM32")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("""
         QLabel {
