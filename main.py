@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 
-APP_NAME = "ezSTM32"
+APP_NAME = "ezSTMtool"
 
 # Только распространённые USB VID STM32.
 # Порты с другим VID можно явно выбрать в интерфейсе.
@@ -1709,40 +1709,6 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    app = QApplication(sys.argv)
-    app.setApplicationName(APP_NAME)
-
-    APPDIR.mkdir(parents=True, exist_ok=True)
-
-    # Один рабочий каталог и жёсткий usb1 требуют запрета второго экземпляра.
-    lock = QLockFile(str(APPDIR / "ezSTM.lock"))
-    lock.setStaleLockTime(0)
-    if not lock.tryLock(100):
-        error = QLabel("ezSTM уже запущен.")
-        error.setWindowTitle(APP_NAME)
-        error.resize(360, 90)
-        error.show()
-        return app.exec()
-
-    try:
-        prepare_files()
-    except Exception as exc:
-        error = QPlainTextEdit()
-        error.setReadOnly(True)
-        error.setWindowTitle("ezSTM — ошибка запуска")
-        error.setPlainText(str(exc))
-        error.resize(700, 220)
-        error.show()
-        return app.exec()
-
-    window = MainWindow()
-    window.show()
-    return app.exec()
-
-
-if __name__ == "__main__":
-    # Помогает Windows корректно идентифицировать приложение
-    # и отображать его иконку на панели задач.
     if sys.platform == "win32":
         import ctypes
 
@@ -1751,11 +1717,72 @@ if __name__ == "__main__":
         )
 
     app = QApplication(sys.argv)
+    app.setApplicationName(APP_NAME)
 
-    icon = QIcon(resource_path(PAYLOAD / "icon.ico"))
+    # PAYLOAD уже содержит полный путь к ресурсам.
+    icon_path = PAYLOAD / "icon.ico"
+    icon = QIcon(str(icon_path))
     app.setWindowIcon(icon)
+
+    # Создание папки для блокировки тоже может завершиться ошибкой.
+    try:
+        APPDIR.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        error = QPlainTextEdit()
+        error.setReadOnly(True)
+        error.setWindowTitle("ezSTM — ошибка запуска")
+        error.setPlainText(
+            f"Не удалось создать папку приложения:\n{APPDIR}\n\n{exc}"
+        )
+        error.resize(700, 220)
+        error.show()
+        return app.exec()
+
+    # Запрещаем второй экземпляр до копирования рабочих файлов.
+    lock = QLockFile(str(APPDIR / "ezSTM.lock"))
+    lock.setStaleLockTime(0)
+
+    if not lock.tryLock(100):
+        error = QLabel(
+            "Не удалось получить блокировку.\n"
+            "Возможно, ezSTM уже запущен."
+        )
+        error.setWindowTitle(APP_NAME)
+        error.resize(420, 100)
+        error.show()
+        return app.exec()
+
+    try:
+        prepare_files()
+
+        # Проверяем наличие обязательных файлов после копирования.
+        for filename in ("read.bat", "write.bat"):
+            path = RUNTIME / filename
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"Не найден обязательный файл:\n{path}"
+                )
+
+    except Exception as exc:
+        error = QPlainTextEdit()
+        error.setReadOnly(True)
+        error.setWindowTitle("ezSTM — ошибка запуска")
+        error.setPlainText(
+            f"Не удалось подготовить рабочие файлы.\n\n"
+            f"Источник: {PAYLOAD}\n"
+            f"Назначение: {RUNTIME}\n\n"
+            f"{type(exc).__name__}: {exc}"
+        )
+        error.resize(700, 300)
+        error.show()
+        return app.exec()
 
     window = MainWindow()
     window.setWindowIcon(icon)
     window.show()
-    sys.exit(app.exec())
+
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
