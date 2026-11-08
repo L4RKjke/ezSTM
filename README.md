@@ -1,6 +1,8 @@
 # ezSTM
 Инструмент для прошивки
 
+Скачать последний релиз: https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe
+
 1. Подключите контроллер к компьютеру по USB и переведите его в режим DFU.
 2. Запустите ezSTM.exe.
 3. Выберите файл прошивки.
