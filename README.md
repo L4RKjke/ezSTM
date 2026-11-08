@@ -19,7 +19,8 @@
 5. При необходимости включите дополнительные опции — их описание приведено ниже.
 6. Запустите операцию и дождитесь сообщения о завершении.
 7. После успешной записи перезагрузите контроллер.
-<img width="1071" height="634" alt="image" src="https://github.com/user-attachments/assets/1c8cd00d-cfca-48ee-abea-261ee96df3a0" />
+<img width="1920" height="1139" alt="Group 1" src="https://github.com/user-attachments/assets/176ff346-5816-4b00-8914-b970908dcc22" />
+
 
 ## 🚀 Как считать прошивку с контроллера
 
@@ -27,7 +28,8 @@
 2. Перейдите во вкладку **Считать прошивку**
 3. Выберете место для файла прошивки
 4. Нажмите кнопку **Считать** и дождитесь сообщения о завершении.
-<img width="1090" height="544" alt="image" src="https://github.com/user-attachments/assets/49737ed5-5bc6-452a-b102-f801af64d866" />
+<img width="1920" height="1126" alt="Group 2" src="https://github.com/user-attachments/assets/36a723b6-c724-4e4b-bfab-0dbe13088f6f" />
+
 
 > [!WARNING]
 > Не отключайте USB и не прерывайте работу программы во время прошивки.
