@@ -1337,7 +1337,10 @@ class MainWindow(QMainWindow):
         styles = styles.replace("__CHECK_BOX_ICON_PATH__", check_box_icon_path)
 
         # Заменяем старую тему, чтобы её правила не мешали новой.
-        app.setStyleSheet(styles)
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(styles)
+
         
 
         self.status = QLabel("FC не подключён")
@@ -1786,3 +1789,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
