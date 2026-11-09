@@ -256,8 +256,8 @@ class MainWindow(QMainWindow):
 
     def _build_tabs(self):
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._build_write_tab(), "Прошить")
-        self.tabs.addTab(self._build_read_tab(), "Считать прошивку")
+        self.tabs.addTab(self._build_write_tab(), "Записать")
+        self.tabs.addTab(self._build_read_tab(), "Прочитать")
         return self.tabs
 
     def _build_write_tab(self):
@@ -315,7 +315,7 @@ class MainWindow(QMainWindow):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        self.read_button = QPushButton("Считать прошивку")
+        self.read_button = QPushButton("Прочитать/ сохранить")
         self.read_button.setProperty("accent", True)
         layout.addWidget(self.read_button)
         layout.addStretch()
