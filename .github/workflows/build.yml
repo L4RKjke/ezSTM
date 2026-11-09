@@ -4,6 +4,13 @@ on:
   push:
     branches: ["dev", "main"]
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Какой номер версии увеличить"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
 
 # Разрешение на создание тегов, релизов и загрузку файлов.
 permissions:
@@ -109,51 +116,78 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("node:fs/promises");
-            const { L4RKjke, ezSTM } = context.repo;
+            const { owner, repo } = context.repo;
 
-            // Читаем последний стабильный релиз.
-            let previousTag = null;
+            const semverRe = /^v?(\d+)\.(\d+)\.(\d+)$/;
 
-            try {
-              const { data: latest } = await github.rest.repos.getLatestRelease({
-                L4RKjke,
-                ezSTM,
-              });
+            // Получаем все релизы (включая черновики) и ищем максимальную версию.
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner,
+              repo,
+              per_page: 100,
+            });
 
-              previousTag = latest.tag_name;
-            } catch (error) {
-              if (error.status !== 404) {
-                throw error;
+            let max = null;
+
+            for (const r of releases) {
+              const m = semverRe.exec(r.tag_name);
+              if (!m) continue;
+
+              const v = [Number(m[1]), Number(m[2]), Number(m[3])];
+
+              if (
+                max === null ||
+                v[0] > max[0] ||
+                (v[0] === max[0] && v[1] > max[1]) ||
+                (v[0] === max[0] && v[1] === max[1] && v[2] > max[2])
+              ) {
+                max = v;
               }
             }
 
-            // Принимаем теги вида v1.2.3 или 1.2.3.
-            // Увеличиваем patch-номер; первый релиз — v1.0.0.
+            // Тип увеличения: при push — patch, при ручном запуске — из входного параметра.
+            const bump = context.payload.inputs?.bump ?? "patch";
+
             let version = "v1.0.0";
 
-            if (previousTag !== null) {
-              const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(previousTag);
+            if (max !== null) {
+              let [major, minor, patch] = max;
 
-              if (!match) {
-                throw new Error(
-                  `Тег последнего релиза "${previousTag}" должен иметь формат v1.2.3.`
-                );
+              if (bump === "major") {
+                major += 1;
+                minor = 0;
+                patch = 0;
+              } else if (bump === "minor") {
+                minor += 1;
+                patch = 0;
+              } else {
+                patch += 1;
               }
-
-              const major = Number(match[1]);
-              const minor = Number(match[2]);
-              const patch = Number(match[3]) + 1;
 
               version = `v${major}.${minor}.${patch}`;
             }
 
-            core.info(`Новый релиз: ${version}`);
+            core.info(`Новый релиз: ${version} (bump: ${bump})`);
+
+            // Проверяем, что тега с таким именем ещё нет.
+            const exists = await github.rest.repos
+              .getReleaseByTag({ owner, repo, tag: version })
+              .then(() => true)
+              .catch((error) => {
+                if (error.status === 404) return false;
+                throw error;
+              });
+
+            if (exists) {
+              throw new Error(`Релиз ${version} уже существует.`);
+            }
 
             const executable = await fs.readFile("dist/ezSTM.exe");
+
             // Сначала создаём черновик, чтобы не публиковать релиз без EXE.
             const { data: release } = await github.rest.repos.createRelease({
-              L4RKjke,
-              ezSTM,
+              owner,
+              repo,
               tag_name: version,
               target_commitish: context.sha,
               name: `ezSTM ${version}`,
@@ -163,15 +197,15 @@ jobs:
                 "Скачайте ezSTM.exe из раздела Assets.",
                 "",
                 `Коммит: ${context.sha}`,
-                `Запуск Actions: ${context.serverUrl}/${L4RKjke}/${ezSTM}/actions/runs/${context.runId}`,
+                `Запуск Actions: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
               ].join("\n"),
               draft: true,
               prerelease: false,
             });
 
             await github.rest.repos.uploadReleaseAsset({
-              L4RKjke,
-              ezSTM,
+              owner,
+              repo,
               release_id: release.id,
               name: "ezSTM.exe",
               headers: {
@@ -183,8 +217,8 @@ jobs:
 
             // Публикуем только после успешной загрузки файла.
             const { data: published } = await github.rest.repos.updateRelease({
-              L4RKjke,
-              ezSTM,
+              owner,
+              repo,
               release_id: release.id,
               draft: false,
               prerelease: false,
