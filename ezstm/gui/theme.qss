@@ -1,0 +1,91 @@
+/* Общая геометрия. Цвета задаются в dark_theme.qss и white_theme.qss. */
+
+QWidget { font-size: 13px; }
+
+QGroupBox {
+    margin-top: 14px;
+    padding: 12px 10px 10px 10px;
+    font-weight: 600;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+}
+
+QPushButton {
+    padding: 7px 14px;
+    min-height: 22px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+}
+QPushButton[accent="true"] { padding: 9px 16px; font-weight: 600; }
+
+QLineEdit, QComboBox {
+    padding: 6px 8px;
+    border-radius: 6px;
+    min-height: 22px;
+}
+QComboBox::drop-down { border: none; width: 22px; }
+
+QCheckBox {
+    spacing: 8px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; }
+QCheckBox::indicator:checked { image: url(CHECK_BOX_ICON_PATH); }
+
+QTabWidget::pane { border-radius: 8px; padding: 10px; top: -1px; }
+QTabBar::tab {
+    padding: 8px 16px;
+    margin-right: 4px;
+    margin-left: 5px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
+QTreeWidget, QPlainTextEdit { border-radius: 8px; padding: 6px; }
+QTreeWidget::item { padding: 4px; }
+QHeaderView::section { padding: 5px 8px; }
+
+QProgressBar { height: 18px; border-radius: 9px; text-align: center; }
+QProgressBar::chunk { border-radius: 9px; }
+
+QSplitter::handle { width: 6px; }
+
+QMenuBar::item { padding: 4px 10px; border-radius: 4px; }
+QMenu { padding: 4px; border-radius: 8px; }
+QMenu::item { padding: 6px 24px 6px 14px; border-radius: 4px; }
+QMenu::separator { height: 1px; margin: 4px 8px; }
+
+/* Кастомная шапка окна */
+#titleBar { min-height: 36px; max-height: 36px; }
+#titleBarTitle { font-size: 13px; font-weight: 600; padding-left: 4px; }
+QToolButton#titleButton,
+QToolButton#titleCloseButton {
+    border: none;
+    border-radius: 0px;
+    font-size: 14px;
+}
+
+QLabel#HelpIcon {
+    border: 1px solid #8fa3b8;
+    border-radius: 9px;
+    color: #8fa3b8;
+    font-weight: 700;
+    font-size: 11px;
+}
+QLabel#HelpIcon:hover {
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+
+/* Верхняя панель: подключение и данные FC */
+#infoPanel { border-radius: 10px; }
+#divider { max-width: 1px; min-width: 1px; margin: 4px 0; }
+#statusDot { font-size: 18px; }
+#statusText { font-size: 14px; font-weight: 600; }
+#fieldCaption { font-size: 11px; }
+#fieldValue { font-size: 13px; font-weight: 600; }
