@@ -6,9 +6,9 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QBrush, QColor, QTextCursor
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-    QPlainTextEdit, QProgressBar, QPushButton, QSplitter, QTabWidget,
+    QApplication, QCheckBox, QComboBox, QFileDialog, QFormLayout, QFrame, QGroupBox,
+    QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+    QPlainTextEdit, QProgressBar, QPushButton, QSizePolicy, QSplitter, QTabWidget,
     QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -21,15 +21,116 @@ from ezstm.gui.widgets import make_scroll
 
 
 JOURNAL_LIMIT = 5000
+NAME_MAX = 16
+HELP_TEXT = (
+            "Если галочка включена, в FC будут записаны имена борта и пилота, указанные в полях ниже. "
+            "Если галочка выключена, имена не будут записаны, а поля ниже будут проигнорированы. "
+            "Формулы в полях имени позволяют автоматически изменять имена при каждой записи. "
+            "Например, если в поле имени борта указано 'E21-540 | ****+1', то при каждой записи имя борта будет увеличиваться на 1: E21-540 → E21-541 → E21-542 и т.д. "
+            "Символ '*' пропускает один символ, а '+N' или '-N' изменяет следующее число на N. "
+            "Если формула не применима к текущему значению, имя останется без изменений. ")
 
-def bump_trailing_number(text: str, step: int = 1) -> str:
-    """E21-540 -> E21-541, ведущие нули сохраняются: E21-009 -> E21-010."""
-    text = text.strip()
-    match = re.search(r"(\d+)$", text)
-    if not match:
-        return text
-    digits = match.group(1)
-    return text[:match.start(1)] + str(int(digits) + step).zfill(len(digits))
+# Разделитель между значением поля и формулой: "E21-540 | ****+1"
+FIELD_SEPARATOR = "|"
+# Токены формулы: "*" пропускает один символ, "+N"/"-N" меняет следующее число.
+FORMULA_TOKEN = re.compile(r"\*|[+-]\d+")
+FORMULA_CHECK = re.compile(r"(?:\*|[+-]\d+)*")
+DIGITS = re.compile(r"\d+")
+BLOCKS_QSS = Path(__file__).resolve().parent / "blocks.qss"
+
+def make_help_icon(text):
+    icon = QLabel("?")
+    icon.setObjectName("HelpIcon")
+    icon.setFixedSize(18, 18)
+    icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    icon.setCursor(Qt.CursorShape.WhatsThisCursor)
+    # <qt> переводит тултип в rich text, и Qt сам переносит длинные строки.
+    icon.setToolTip(f"<qt>{text}</qt>")
+    return icon
+
+def split_field(text: str) -> tuple[str, str]:
+    """'E21-540 | ****+1' -> ('E21-540', '****+1')."""
+    value, _, formula = text.partition(FIELD_SEPARATOR)
+    return value.strip(), formula.strip()
+
+
+def join_field(value: str, formula: str = "") -> str:
+    """('E21-540', '****+1') -> 'E21-540 | ****+1'."""
+    return f"{value} {FIELD_SEPARATOR} {formula}" if formula else value
+
+
+def apply_formula(value: str, formula: str):
+    """Применяет формулу к значению.
+
+    Возвращает новое значение или None, если формулы нет
+    или её нельзя применить к этому значению.
+
+    Пример: value='E21-435', formula='****+1' -> 'E21-436'.
+    """
+    if not formula or not FORMULA_CHECK.fullmatch(formula):
+        return None
+
+    result, pos = [], 0
+    for token in FORMULA_TOKEN.findall(formula):
+        if token == "*":
+            if pos >= len(value):
+                return None
+            result.append(value[pos])
+            pos += 1
+            continue
+
+        match = DIGITS.search(value, pos)
+        if not match:
+            return None
+        digits = match.group()
+        number = int(digits) + int(token)
+        if number < 0:
+            return None
+
+        result.append(value[pos:match.start()])
+        result.append(str(number).zfill(len(digits)))
+        pos = match.end()
+
+    result.append(value[pos:])
+    return "".join(result)
+
+
+def name_value(edit: QLineEdit) -> str:
+    """Чистое значение поля без формулы, обрезанное до лимита FC."""
+    return split_field(edit.text())[0][:NAME_MAX]
+
+
+def make_block(title: str):
+    """Блок с заголовком внутри рамки и разделителем под заголовком."""
+    frame = QFrame()
+    frame.setObjectName("Block")
+    outer = QVBoxLayout(frame)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.setSpacing(0)
+
+    header = QLabel(title)
+    header.setObjectName("BlockTitle")
+
+    separator = QFrame()
+    separator.setObjectName("BlockSeparator")
+    separator.setFixedHeight(1)
+
+    body = QWidget()
+    body.setObjectName("BlockBody")
+    body_layout = QVBoxLayout(body)
+    body_layout.setContentsMargins(12, 10, 12, 12)
+    body_layout.setSpacing(8)
+
+    outer.addWidget(header)
+    outer.addWidget(separator)
+    outer.addWidget(body)
+    return frame, body_layout
+
+
+def load_blocks_stylesheet() -> str:
+    if BLOCKS_QSS.exists():
+        return BLOCKS_QSS.read_text(encoding="utf-8")
+    return ""
 
 
 class MainWindow(QMainWindow):
@@ -47,7 +148,7 @@ class MainWindow(QMainWindow):
 
         app = QApplication.instance()
         if app is not None:
-            app.setStyleSheet(load_stylesheet())
+            app.setStyleSheet(load_stylesheet() + "\n" + load_blocks_stylesheet())
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -59,7 +160,7 @@ class MainWindow(QMainWindow):
 
         # Низ: слева настройки, справа журналы, операции и консоль.
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.splitter.addWidget(make_scroll(self._build_left_panel()))
+        self.splitter.addWidget(self._build_left_panel())
         self.splitter.addWidget(make_scroll(self._build_right_panel()))
         self.splitter.setChildrenCollapsible(False)
         self.splitter.setSizes([420, 760])
@@ -84,22 +185,31 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ layout
 
-
     def _build_left_panel(self):
         left = QWidget()
         left.setMinimumWidth(380)
-        layout = QVBoxLayout(left)
+        outer = QVBoxLayout(left)
+        outer.setContentsMargins(0, 0, 0, 0)
 
+        content = QWidget()
+        content.setMinimumWidth(0)  # не даём содержимому задавать ширину
+        layout = QVBoxLayout(content)
         layout.addWidget(self._build_connection_box())
         layout.addWidget(self._build_images_box())
         layout.addWidget(self._build_tabs())
-        layout.addWidget(self._build_info_box())
         layout.addStretch()
+
+        scroll = make_scroll(content)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidgetResizable(True)  # ключевая строка: ширина содержимого = ширине области
+
+        outer.addWidget(scroll, 1)
+        outer.addWidget(self._build_info_box())
         return left
 
+    
     def _build_connection_box(self):
-        box = QGroupBox("Подключение")
-        layout = QVBoxLayout(box)
+        box, layout = make_block("Подключение")
 
         port_row = QHBoxLayout()
         self.port = QComboBox()
@@ -117,11 +227,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.auto_connect)
         layout.addWidget(self.auto_write)
         layout.addWidget(self.connect_button)
+
+        self.port.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.port.setMinimumContentsLength(18)
+
         return box
 
     def _build_images_box(self):
-        box = QGroupBox("Образы")
-        layout = QVBoxLayout(box)
+        box, layout = make_block("Образы")
 
         folder_row = QHBoxLayout()
         self.folder = QLineEdit(str(DEFAULT_IMAGES))
@@ -135,6 +248,10 @@ class MainWindow(QMainWindow):
         self.reload_images_button = QPushButton("Обновить список образов")
         layout.addWidget(self.image)
         layout.addWidget(self.reload_images_button)
+
+        self.image.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.image.setMinimumContentsLength(18)
+        
         return box
 
     def _build_tabs(self):
@@ -147,43 +264,52 @@ class MainWindow(QMainWindow):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        functions_box = QGroupBox("Функции")
-        functions_layout = QVBoxLayout(functions_box)
+        self.write_box, box_layout = make_block("Запись")
+        box_layout.setSpacing(8)
+
         self.names_check = QCheckBox("Добавить имя пилота / имя борта")
         self.names_check.setChecked(True)
         self.erase = QCheckBox("Полное стирание чипа")
         self.calibrate_box = QCheckBox("Калибровать акселерометр")
-        functions_layout.addWidget(self.names_check)
-        functions_layout.addWidget(self.erase)
-        functions_layout.addWidget(self.calibrate_box)
-        layout.addWidget(functions_box)
 
-        layout.addWidget(self._build_names_box())
+        # Галочка имени и значок «?» в одной строке.
+        names_row = QHBoxLayout()
+        names_row.setSpacing(6)
+        names_row.addWidget(self.names_check)
+        names_row.addWidget(make_help_icon(HELP_TEXT))
+        names_row.addStretch()
+        box_layout.addLayout(names_row)
 
-        self.write_button = QPushButton("Записать образ")
-        self.write_button.setProperty("accent", True)
-        layout.addWidget(self.write_button)
-        layout.addStretch()
+        for check in (self.erase, self.calibrate_box):
+            check.setSizePolicy(
+                QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+            )
+            box_layout.addWidget(check)
 
-        return tab
-
-    def _build_names_box(self):
-        self.names_box = QGroupBox("Имя")
-        layout = QVBoxLayout(self.names_box)
+        # Контейнер полей имени: скрывается вместе с галочкой names_check.
+        self.names_box = QWidget()
+        names_layout = QVBoxLayout(self.names_box)
+        names_layout.setContentsMargins(0, 8, 0, 12)
 
         form = QFormLayout()
+        form.setVerticalSpacing(18)
         self.craft = QLineEdit("FC")
         self.pilot = QLineEdit("PILOT")
-        self.craft.setMaxLength(16)
-        self.pilot.setMaxLength(16)
+        self.craft.setPlaceholderText("например: E21-540 | ****+1")
+        self.pilot.setPlaceholderText("например: PILOT1 | *****+1")
         form.addRow("Имя борта:", self.craft)
         form.addRow("Имя пилота:", self.pilot)
-        layout.addLayout(form)
+        names_layout.addLayout(form)
 
-        self.auto_name = QCheckBox("Увеличивать имя пилота на 1 после прошивки")
-        layout.addWidget(self.auto_name)
-        return self.names_box
+        box_layout.addWidget(self.names_box)
+        
+        self.write_button = QPushButton("Записать образ")
+        self.write_button.setProperty("accent", True)
+        box_layout.addWidget(self.write_button)
 
+        layout.addWidget(self.write_box)
+        layout.addStretch()
+        return tab
 
     def _build_read_tab(self):
         tab = QWidget()
@@ -196,9 +322,10 @@ class MainWindow(QMainWindow):
         return tab
 
     def _build_info_box(self):
-        box = QGroupBox("Данные FC")
-        layout = QFormLayout(box)
-        layout.setVerticalSpacing(4)
+        box, layout = make_block("Данные FC")
+
+        form = QFormLayout()
+        form.setVerticalSpacing(4)
 
         self.info_labels = {}
         for key, text in (
@@ -212,7 +339,9 @@ class MainWindow(QMainWindow):
                 Qt.TextInteractionFlag.TextSelectableByMouse
             )
             self.info_labels[key] = label
-            layout.addRow(text, label)
+            form.addRow(text, label)
+
+        layout.addLayout(form)
         return box
 
     def _build_right_panel(self):
@@ -258,7 +387,6 @@ class MainWindow(QMainWindow):
     # ----------------------------------------------------------- signals
 
     def _connect_signals(self):
-        
         engine = self.engine
         engine.log.connect(self.append_log)
         engine.info.connect(self.update_info)
@@ -290,32 +418,33 @@ class MainWindow(QMainWindow):
             check.toggled.connect(self.send_settings)
 
         self.names_check.toggled.connect(self.on_options_changed)
-        self.auto_name.toggled.connect(self.on_options_changed)
-        
 
-        self.craft.textChanged.connect(self.send_settings)
-        self.pilot.textChanged.connect(self.send_settings)
+        self.craft.textChanged.connect(self.on_name_text_changed)
+        self.pilot.textChanged.connect(self.on_name_text_changed)
         self.image.currentIndexChanged.connect(self.send_settings)
         self.port.currentIndexChanged.connect(self.send_settings)
+
     # ------------------------------------------------------- preferences
 
     def restore_prefs(self):
         self.names_check.setChecked(
             self.settings.value("names", True, type=bool)
         )
-        self.auto_name.setChecked(
-            self.settings.value("auto_name", False, type=bool)
-        )
+        # Поля хранятся вместе с формулой: "E21-540 | ****+1".
+        self.craft.setText(str(self.settings.value("craft", "FC")))
         self.pilot.setText(str(self.settings.value("pilot", "PILOT")))
 
     def save_prefs(self):
         self.settings.setValue("names", self.names_check.isChecked())
-        self.settings.setValue("auto_name", self.auto_name.isChecked())
+        self.settings.setValue("craft", self.craft.text().strip())
         self.settings.setValue("pilot", self.pilot.text().strip())
-
 
     def on_options_changed(self, *_):
         self.names_box.setVisible(self.names_check.isChecked())
+        self.save_prefs()
+        self.send_settings()
+
+    def on_name_text_changed(self, *_):
         self.save_prefs()
         self.send_settings()
 
@@ -329,8 +458,8 @@ class MainWindow(QMainWindow):
             "auto_connect": self.auto_connect.isChecked(),
             "auto_write": self.auto_write.isChecked(),
             "names": self.names_check.isChecked(),
-            "craft": self.craft.text().strip(),
-            "pilot": self.pilot.text().strip(),
+            "craft": name_value(self.craft),
+            "pilot": name_value(self.pilot),
             "erase": self.erase.isChecked(),
             "calibrate": self.calibrate_box.isChecked(),
         }
@@ -438,36 +567,53 @@ class MainWindow(QMainWindow):
             f"Журнал прошивок (всего записей: {len(self.journal)})"
         )
 
-
     def pick_recent(self, item, _column=0):
         rec = item.data(0, Qt.ItemDataRole.UserRole)
         if not rec:
             return
-        self.craft.setText(str(rec.get("craft", "")))
-        self.pilot.setText(str(rec.get("pilot", "")))
+        # Подставляем значения из журнала, формулы в полях сохраняем.
+        _, craft_formula = split_field(self.craft.text())
+        _, pilot_formula = split_field(self.pilot.text())
+        self.craft.setText(
+            join_field(str(rec.get("craft", "")), craft_formula)
+        )
+        self.pilot.setText(
+            join_field(str(rec.get("pilot", "")), pilot_formula)
+        )
 
     def on_write_success(self):
-        # Запись в журнал делаем до изменения имени пилота,
-        # чтобы сохранить имена, которые реально были записаны в FC.
         names_written = self.names_check.isChecked()
-        craft = self.craft.text().strip() if names_written else ""
-        pilot = self.pilot.text().strip() if names_written else ""
+        craft = name_value(self.craft) if names_written else ""
+        pilot = name_value(self.pilot) if names_written else ""
 
         self.add_journal_record(craft, pilot)
         self.refresh_journal_views()
         self.append_log("Запись добавлена в журнал прошивок")
 
-        # Пилот меняется только если записывались имена и включена галочка.
-        if not (names_written and self.auto_name.isChecked()):
-            return
+        # Формулы применяем только если имена реально записывались в FC.
+        if names_written:
+            self.advance_name_fields()
 
-        old_pilot = self.pilot.text().strip()
-        new_pilot = bump_trailing_number(old_pilot)
-        if new_pilot != old_pilot:
-            self.pilot.setText(new_pilot)
+    def advance_name_fields(self):
+        changed = False
+        for edit, title in ((self.craft, "Имя борта"),
+                            (self.pilot, "Имя пилота")):
+            value, formula = split_field(edit.text())
+            new_value = apply_formula(value, formula)
+            if new_value is None or new_value == value:
+                continue
+            if len(new_value) > NAME_MAX:
+                self.append_log(
+                    f"{title}: новое значение длиннее {NAME_MAX} символов, "
+                    "поле не изменено"
+                )
+                continue
+            edit.setText(join_field(new_value, formula))
+            self.append_log(f"{title}: {value} → {new_value}")
+            changed = True
+
+        if changed:
             self.save_prefs()
-            self.append_log(f"Имя пилота обновлено: {old_pilot} → {new_pilot}")
-
 
     # ----------------------------------------------------------- slots
 
@@ -500,7 +646,6 @@ class MainWindow(QMainWindow):
         if not connected:
             for label in self.info_labels.values():
                 label.setText("—")
-
 
     def update_progress(self, value):
         self.progress.setValue(value)
@@ -553,12 +698,10 @@ class MainWindow(QMainWindow):
             self.browse_button, self.reload_images_button,
             self.refresh_ports_button, self.port, self.image,
             self.auto_connect, self.auto_write, self.erase,
-            self.calibrate_box, self.names_check, self.auto_name,
+            self.calibrate_box, self.names_check,
             self.craft, self.pilot, self.journal_tree,
         ):
             widget.setEnabled(not value)
-
-
 
     def closeEvent(self, event):
         if self.working:

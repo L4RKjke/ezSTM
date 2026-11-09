@@ -24,7 +24,11 @@ QLineEdit, QComboBox {
 }
 QComboBox::drop-down { border: none; width: 22px; }
 
-QCheckBox { spacing: 8px; }
+QCheckBox {
+    spacing: 8px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
 QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; }
 QCheckBox::indicator:checked { image: url(CHECK_BOX_ICON_PATH); }
 
@@ -32,6 +36,7 @@ QTabWidget::pane { border-radius: 8px; padding: 10px; top: -1px; }
 QTabBar::tab {
     padding: 8px 16px;
     margin-right: 4px;
+    margin-left: 5px;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
 }
@@ -59,6 +64,19 @@ QToolButton#titleCloseButton {
     border-radius: 0px;
     font-size: 14px;
 }
+
+QLabel#HelpIcon {
+    border: 1px solid #8fa3b8;
+    border-radius: 9px;
+    color: #8fa3b8;
+    font-weight: 700;
+    font-size: 11px;
+}
+QLabel#HelpIcon:hover {
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
 
 /* Верхняя панель: подключение и данные FC */
 #infoPanel { border-radius: 10px; }

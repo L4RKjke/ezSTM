@@ -2,7 +2,7 @@ name: Build and Release ezSTM for Windows
 
 on:
   push:
-    branches: ["main"]
+    branches: ["dev", "main"]
   workflow_dispatch:
 
 # Разрешение на создание тегов, релизов и загрузку файлов.
@@ -96,7 +96,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Skip release for non-main branch
+        if: github.ref != 'refs/heads/main'
+        shell: pwsh
+        run: Write-Host "Ветка $env:GITHUB_REF_NAME: релиз не создаётся, только сборка и артефакт."
+
       - name: Create and publish GitHub release
+        if: github.ref == 'refs/heads/main'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
