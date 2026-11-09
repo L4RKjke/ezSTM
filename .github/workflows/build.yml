@@ -62,17 +62,16 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $file = "ezstm\__init__.py"
-          $content = Get-Content $file -Raw -Encoding utf8
+          $text = Get-Content $file -Raw -Encoding utf8
+          $text = $text.TrimStart([char]0xFEFF)
 
-          if ($content -notmatch '(?m)^\s*version\s*=\s*["''](?<v>[^"'']+)["'']') {
+          if ($text -match '(?m)^\s*(?:__version__|version)\s*=\s*["'']([^"'']+)["'']') {
+            $version = $Matches[1]
+            Write-Host "Версия: $version"
+          } else {
             throw "Не удалось найти строку version = ""..."" в $file."
           }
 
-          $version = $Matches['v'].Trim()
-
-          if ($version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.]+)?$') {
-            throw "Некорректный формат версии: '$version'."
-          }
 
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8NoBOM
           Write-Host "Версия проекта: $version"
