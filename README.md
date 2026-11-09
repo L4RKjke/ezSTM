@@ -4,8 +4,7 @@
 
 [![Скачать для Windows](https://img.shields.io/badge/Скачать-для_Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)
 
-[**Скачать последнюю версию `ezSTM.exe`**](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)
-**Все опубликованные версии доступны в разделе** [Releases](https://github.com/L4RKjke/ezSTM/releases).
+[**Скачать последнюю версию `ezSTM.exe`**](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)  
 
 
 ## :spiral_notepad: Как записать прошивку на контроллер
@@ -45,7 +44,7 @@
 **Пример:** `E21-540 | ****+1` → `E21-541` → `E21-542` → …
 
 Если формула неприменима, имя остаётся без изменений
-
+##
 >
 > [!WARNING]
 > Не отключайте USB и не прерывайте работу программы во время прошивки.
