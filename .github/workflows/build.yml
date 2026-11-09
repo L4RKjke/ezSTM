@@ -1,4 +1,4 @@
-name: Build ezSTM and Update Latest Release
+name: Build ezSTM and Create Release
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
 
-# Не допускаем параллельного обновления релиза.
+# Не допускаем параллельной публикации релизов.
 concurrency:
   group: ezstm-windows-release
   cancel-in-progress: false
@@ -35,6 +35,7 @@ jobs:
           $required = @(
             "main.py",
             "requirements.txt",
+            "ezstm\__init__.py",
             "payload\read.bat",
             "payload\write.bat",
             "payload\bin\stm32pr.exe",
@@ -53,6 +54,26 @@ jobs:
           if (Test-Path "payload\fw.bin") {
             throw "payload\fw.bin должен быть удалён из репозитория."
           }
+
+      - name: Read version from ezstm/__init__.py
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $file = "ezstm\__init__.py"
+          $text = Get-Content $file -Raw -Encoding utf8
+          $text = $text.TrimStart([char]0xFEFF)
+
+          if ($text -match '(?m)^\s*(?:__version__|version)\s*=\s*["'']([^"'']+)["'']') {
+            $version = $Matches[1]
+            Write-Host "Версия: $version"
+          } else {
+            throw "Не удалось найти строку version = ""..."" в $file."
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8NoBOM
+          Write-Host "Версия проекта: $version"
 
       - name: Create virtual environment
         shell: pwsh
@@ -91,64 +112,54 @@ jobs:
       - name: Upload executable to Actions artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ezSTM-Windows-${{ github.sha }}
+          name: ezSTM-Windows-v${{ steps.version.outputs.version }}-${{ github.sha }}
           path: dist/ezSTM.exe
           if-no-files-found: error
           retention-days: 30
 
-      - name: Update latest release
+      - name: Create release for new version
         if: github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           $ErrorActionPreference = "Stop"
 
-          $exe = "dist\ezSTM.exe"
+          $exe    = "dist\ezSTM.exe"
+          $tag    = "v$env:VERSION"
           $commit = $env:GITHUB_SHA
           $runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
+          # Проверяем, существует ли уже релиз с таким тегом.
+          # Если нет, gh вернёт ненулевой код, это не ошибка.
+          $ErrorActionPreference = "Continue"
+          gh release view $tag *> $null
+          $exists = ($LASTEXITCODE -eq 0)
+          $ErrorActionPreference = "Stop"
+
+          if ($exists) {
+            Write-Host "Релиз $tag уже существует. Новый релиз не создаётся."
+            Write-Host "Чтобы выпустить новую сборку, увеличьте version в ezstm/__init__.py."
+            "## Релиз $tag уже существует, пропущено" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+
           $notes = @(
-            "Автоматическая сборка ezSTM для Windows.",
-            "",
-            "Файл ezSTM.exe обновлён автоматически после успешной сборки.",
+            "Автоматическая сборка ezSTM $tag для Windows.",
             "",
             "Коммит: $commit",
             "Запуск Actions: $runUrl"
           ) -join "`n"
 
-          # Получаем последний опубликованный релиз (черновики не учитываются).
-          # Если релиза нет, gh вернёт ненулевой код, и это не ошибка.
-          $ErrorActionPreference = "Continue"
-          $tag = gh release view --json tagName --jq .tagName 2>$null
-          $hasRelease = ($LASTEXITCODE -eq 0) -and [bool]$tag
-          $ErrorActionPreference = "Stop"
+          gh release create $tag $exe `
+            --target $commit `
+            --title "ezSTM $tag" `
+            --notes $notes
+          if ($LASTEXITCODE -ne 0) { throw "Не удалось создать релиз $tag." }
 
-          if ($hasRelease) {
-            Write-Host "Обновляю релиз $tag"
+          Write-Host "Релиз $tag создан."
 
-            # --clobber заменяет одноимённый ассет.
-            gh release upload $tag $exe --clobber
-            if ($LASTEXITCODE -ne 0) { throw "Не удалось загрузить ассет в $tag." }
-
-            gh release edit $tag --notes $notes
-            if ($LASTEXITCODE -ne 0) { throw "Не удалось обновить описание $tag." }
-
-            Write-Host "Релиз $tag обновлён."
-          }
-          else {
-            $tag = "v1.0.0"
-            Write-Host "Опубликованных релизов нет, создаю $tag"
-
-            gh release create $tag $exe `
-              --target $commit `
-              --title "ezSTM $tag" `
-              --notes $notes
-            if ($LASTEXITCODE -ne 0) { throw "Не удалось создать релиз $tag." }
-
-            Write-Host "Релиз $tag создан."
-          }
-
-          "## Релиз ezSTM $tag обновлён" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          "## Создан релиз ezSTM $tag" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
           "[Открыть релиз](https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$tag)" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
