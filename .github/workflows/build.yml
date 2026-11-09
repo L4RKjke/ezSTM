@@ -78,7 +78,7 @@ jobs:
               --name ezSTM `
               --icon payload\icon.ico `
               --add-data "payload;payload" `
-              --add-data "ezstm\gui\theme.qss;ezstm\gui" `
+              --collect-data ezstm `
               main.py
 
           if ($LASTEXITCODE -ne 0) {
