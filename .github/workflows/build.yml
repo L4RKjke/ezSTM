@@ -72,7 +72,6 @@ jobs:
             throw "Не удалось найти строку version = ""..."" в $file."
           }
 
-
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8NoBOM
           Write-Host "Версия проекта: $version"
 
