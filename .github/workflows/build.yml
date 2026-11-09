@@ -96,10 +96,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Skip release for non-main branch
-        if: github.ref != 'refs/heads/main'
+      - name: Show branch info
         shell: pwsh
-        run: Write-Host "Ветка $env:GITHUB_REF_NAME: релиз не создаётся, только сборка и артефакт."
+        run: 'Write-Host "Ветка $env:GITHUB_REF_NAME: релиз не создаётся, только сборка и артефакт."'
+
 
       - name: Create and publish GitHub release
         if: github.ref == 'refs/heads/main'
