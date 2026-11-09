@@ -4,8 +4,9 @@
 
 [![Скачать для Windows](https://img.shields.io/badge/Скачать-для_Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)
 
+[**Скачать последнюю версию `ezSTM.exe`**](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)
+Все опубликованные версии доступны в разделе [Releases](https://github.com/L4RKjke/ezSTM/releases).
 
-@@ -14,12 +13,21 @@
 ## :spiral_notepad: Как прошить контроллер
 
 1. Подключите контроллер к компьютеру по **USB**.
@@ -29,7 +30,6 @@
 > [!WARNING]
 > Не отключайте USB и не прерывайте работу программы во время прошивки.
 
-@@ -29,7 +37,6 @@
 1. Колибовка аксилерометра
 2. Полное стирание чипа для снятия защиты
 3. Запись имен после успешной прошивки
