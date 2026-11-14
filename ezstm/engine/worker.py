@@ -3,10 +3,12 @@ import os
 import queue
 import re
 import shutil
+import struct
 import subprocess
 import threading
 import time
 from pathlib import Path
+
 
 from PySide6.QtCore import QThread, Signal
 
@@ -44,7 +46,6 @@ class Engine(QThread):
         self.last_detection_error = ""
 
     # ----------------------------------------------------------- utilities
-
     def submit(self, command, settings=None):
         self.commands.put((command, dict(settings or {})))
 
@@ -307,6 +308,46 @@ class Engine(QThread):
             "FC подтвердил сохранение настроек. "
             "Горизонтальность установки программно не проверяется."
         )
+    
+    MSP_STATUS = 101
+
+    # Биты sensorStatus в MSP_STATUS (Betaflight)
+    SENSOR_FLAGS = (
+        ("Аксель", 1 << 0),
+        ("Барометр", 1 << 1),
+        ("GPS модуль", 1 << 3),
+        ("Гироскоп", 1 << 5),
+    )
+
+    def read_sensor_status(self, port):
+        msp = MSP(port)
+        try:
+            payload = msp.request(self.MSP_STATUS)
+        finally:
+            msp.close()
+
+        if not payload or len(payload) < 6:
+            raise RuntimeError("Некорректный ответ MSP_STATUS.")
+
+        # cycleTime (U16), i2cErrorCounter (U16), sensorStatus (U16)
+        _, _, sensors = struct.unpack("<HHH", bytes(payload[:6]))
+        return sensors
+
+    def report_sensors(self):
+        try:
+            port = self.wait_serial(timeout=10)
+            sensors = self.read_sensor_status(port)
+        except Exception as exc:
+            self.message(f"Проверка систем невозможна: {exc}")
+            return
+
+        lines = ["Проверка систем:"]
+        for name, bit in self.SENSOR_FLAGS:
+            state = "исправен" if sensors & bit else "отсутствует"
+            lines.append(f"{name}: {state}")
+
+        self.message("\n".join(lines))
+
 
     # ----------------------------------------------------------- operations
 
@@ -426,6 +467,7 @@ class Engine(QThread):
             try:
                 self.wait_serial(timeout=10)
                 self.connection.emit(True, "FC подключён")
+                self.report_sensors()
             except Exception:
                 self.current = None
                 self.connection.emit(False, "Ожидание FC")
