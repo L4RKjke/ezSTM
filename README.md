@@ -4,7 +4,7 @@
 
 [![Скачать для Windows](https://img.shields.io/badge/Скачать-для_Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)
 
-[**Скачать последнюю версию `ezSTM.exe`**](https://github.com/L4RKjke/ezSTM/releases/latest/download/ezSTM.exe)  
+<img width="1672" height="941" alt="01a1e4bc-b990-7089-ad67-8883d2870203" src="https://github.com/user-attachments/assets/5581e3cc-7668-4350-8706-a7567bbd95ac" />
 
 
 ## :spiral_notepad: Как записать прошивку на контроллер
